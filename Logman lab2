@@ -1,0 +1,92 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+import csv
+
+# ChromeDriver-in tam yolunu göstərin
+service = Service(r'C:\Users\Huawei\PycharmProjects\pythonProject\chromedriver-win64\chromedriver.exe')
+driver = webdriver.Chrome(service=service)
+
+# Sayta daxil olun
+driver.get("https://sso.aztu.edu.az/")
+
+# Username sahəsini gözləyin
+username_input = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.XPATH, "//input[@placeholder='İstifadəçi adı']"))
+)
+
+# Parol sahəsini gözləyin
+password_input = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.XPATH, "//input[@placeholder='Şifrə']"))
+)
+
+# Username və parolu daxil edin
+username_input.send_keys("202306396")
+password_input.send_keys("Logman2006.")
+
+# Daxil ol düyməsini tapın və basın
+login_button = driver.find_element(By.XPATH, "//button[@type='submit']")
+login_button.click()
+
+# Gözləyin ki, giriş prosesi tamamlansın
+WebDriverWait(driver, 10).until(EC.url_changes("https://sso.aztu.edu.az/"))  # Girişin tamamlandığını gözləyin
+
+# Tələbə keçidinə daxil olun
+student_link = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.LINK_TEXT, "Tələbə keçid"))
+)
+student_link.click()
+
+# Fənlər hissəsinə daxil olun
+fenler_link = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.XPATH, "//a[span[contains(text(), 'Fənlər')]]")))  # Fənlər linkini gözləyin
+fenler_link.click()
+
+# Python proqramlaşdırma dilinə daxil olun
+python_link = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.XPATH,
+                                "//a[contains(@href, 'lecture_name=Python proqramlaşdırma dili')]")))  # Python proqramlaşdırma dili linkini tapın
+python_link.click()
+
+# Davamiyyət linkinə daxil olun
+attendance_link = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Davamiyyət')]")))  # Davamiyyət linkini tapın
+attendance_link.click()
+
+# Gözləyin ki, səhifə tam yüklənsin
+time.sleep(5)  # İstədiyiniz müddətə görə dəyişdirin
+
+# Cədvəli tapın
+table = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.XPATH, "//table[@id='datatable-buttons']"))  # Cədvəl elementini tapın
+)
+
+# "Dərsin tarixi" sətrini tapın
+date_row = table.find_element(By.XPATH, ".//tr[th[contains(text(),'Dərsin tarixi')]]")
+date_columns = date_row.find_elements(By.XPATH, ".//th[contains(@class, 'list_text6')]//font")
+
+# Tarixləri çıxarın
+dates = [col.text.strip() for col in date_columns if col.text.strip()]  # Boş tarixləri çıxarırıq
+
+# CSV faylı yaradın
+with open('cedvel.csv', mode='w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+
+    # Başlıqları yazın
+    header =  dates
+    writer.writerow(header)
+
+    # Cədvəldəki tələbə məlumatlarını oxuyun
+    rows = table.find_elements(By.TAG_NAME, "tr")
+    for row in rows[1:]:  # İlk sətri keçirik (tarixlər üçün)
+        columns = row.find_elements(By.TAG_NAME, "td")
+        if len(columns) > 3:  # Tələbə məlumatları varsa
+            student_name = columns[2].text.strip()  # Tələbənin adı
+            attendance_status = [col.text.strip() for col in columns[3:]]  # Davamiyyət məlumatları
+            writer.writerow([student_name] + attendance_status)
+
+print("Cədvəl CSV faylına uğurla yazıldı.")
+driver.quit()
